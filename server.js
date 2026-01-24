@@ -1,11 +1,9 @@
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import cors from "cors";
-
-const app = express();
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -96,6 +94,7 @@ io.use((socket, next) => {
         return next(new Error("Invalid token"));
     }
 });
+
 
 
 

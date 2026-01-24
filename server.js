@@ -81,10 +81,10 @@ io.use((socket, next) => {
 /* =========================
    SOCKET ROOMS
 ========================= */
+
 io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) {
-        console.log("❌ No token");
         return next(new Error("No token"));
     }
 
@@ -93,9 +93,10 @@ io.use((socket, next) => {
         socket.user = user;
         next();
     } catch (err) {
-        console.log("❌ Invalid token", err.message);
-        next(new Error("Invalid token"));
+        return next(new Error("Invalid token"));
     }
 });
+
+
 
 

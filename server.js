@@ -95,6 +95,15 @@ io.use((socket, next) => {
     }
 });
 
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+    console.log("🎤 Karaoke backend ready on port", PORT);
+});
+
+app.get("/", (req, res) => {
+    res.send("Karaoke backend is running");
+});
 
 
 

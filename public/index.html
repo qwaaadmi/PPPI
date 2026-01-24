@@ -42,6 +42,9 @@
             cursor: pointer;
             font-weight: bold;
         }
+        button:hover {
+            background: #cc0044;
+        }
         .main-layout {
             display: flex;
             width: 95%;
@@ -57,7 +60,7 @@
             overflow-y: auto;
         }
         .song-item {
-            padding: 10px;
+            padding: 15px;
             background: #262640;
             margin-bottom: 10px;
             border-radius: 8px;
@@ -65,15 +68,14 @@
             display: flex;
             gap: 10px;
             align-items: center;
-        }
-        .song-item img {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 4px;
+            transition: all 0.3s;
         }
         .song-item:hover {
             background: #ff0055;
+            transform: translateX(5px);
+        }
+        .song-icon {
+            font-size: 30px;
         }
         .stage {
             flex: 1;
@@ -82,7 +84,7 @@
             align-items: center;
         }
         #player-wrapper {
-            width: 60%;
+            width: 70%;
             aspect-ratio: 16/9;
             margin-bottom: 20px;
             border-radius: 15px;
@@ -111,6 +113,19 @@
             top: 10px;
             right: 20px;
             color: #aaa;
+            font-size: 14px;
+        }
+        .status {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            padding: 8px 15px;
+            background: #00aa00;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .status.disconnected {
+            background: #aa0000;
         }
     </style>
 </head>
@@ -119,15 +134,16 @@
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
     <h1>🎤 Karaoke Stars</h1>
-    <input id="username" placeholder="Логін">
-    <input id="password" type="password" placeholder="Пароль">
-    <input id="room" placeholder="Кімната">
+    <input id="username" placeholder="Логін" value="test">
+    <input id="password" type="password" placeholder="Пароль" value="123">
+    <input id="room" placeholder="Кімната" value="1">
     <button onclick="login()">Увійти</button>
     <button onclick="register()">Реєстрація</button>
 </div>
 
 <!-- APP -->
 <div id="app-screen" class="screen">
+    <div class="status" id="status">🔴 Не підключено</div>
     <div class="room-info" id="room-display"></div>
     <div class="main-layout">
         <div class="sidebar" id="song-list"></div>
@@ -136,13 +152,14 @@
                 <div id="player"></div>
             </div>
             <div id="lyrics-box">
-                <div style="color:#444">Оберіть пісню</div>
+                <div style="color:#444; font-size:20px;">Оберіть пісню зі списку 👈</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+// ========== CONFIG ==========
 const API_URL = "https://karaoke-dk7o.onrender.com";
 let socket = null;
 let currentRoom = null;
@@ -150,7 +167,7 @@ let player = null;
 let currentLyrics = [];
 let lyricsInterval = null;
 
-// DOM
+// ========== DOM ==========
 const loginScreen = document.getElementById("login-screen");
 const appScreen = document.getElementById("app-screen");
 const usernameInput = document.getElementById("username");
@@ -158,14 +175,15 @@ const passwordInput = document.getElementById("password");
 const roomInput = document.getElementById("room");
 const songList = document.getElementById("song-list");
 const roomDisplay = document.getElementById("room-display");
+const statusDiv = document.getElementById("status");
 
-// REGISTER
+// ========== AUTH ==========
 async function register() {
-    const username = usernameInput.value;
-    const password = passwordInput.value;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
     
     if (!username || !password) {
-        alert("Заповніть всі поля");
+        alert("Заповніть всі поля!");
         return;
     }
     
@@ -178,18 +196,17 @@ async function register() {
         const data = await res.json();
         alert(data.message);
     } catch (error) {
-        alert("Помилка: " + error.message);
+        alert("Помилка з'єднання: " + error.message);
     }
 }
 
-// LOGIN
 async function login() {
-    const username = usernameInput.value;
-    const password = passwordInput.value;
-    currentRoom = roomInput.value;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    currentRoom = roomInput.value.trim();
     
     if (!username || !password || !currentRoom) {
-        alert("Заповніть всі поля");
+        alert("Заповніть всі поля!");
         return;
     }
     
@@ -214,38 +231,58 @@ async function login() {
         initSocket();
         renderSongs();
     } catch (error) {
-        alert("Помилка: " + error.message);
+        alert("Помилка з'єднання: " + error.message);
     }
 }
 
-// SOCKET
+// ========== SOCKET ==========
 function initSocket() {
+    console.log("Підключаємося до Socket.IO...");
+    
     socket = io(API_URL, {
-        auth: { token: localStorage.getItem("token") }
+        auth: { token: localStorage.getItem("token") },
+        transports: ['websocket', 'polling']
     });
     
     socket.on("connect", () => {
-        console.log("Connected to server");
+        console.log("✅ Підключено до сервера!");
+        statusDiv.textContent = "🟢 Підключено";
+        statusDiv.classList.remove("disconnected");
         socket.emit("joinRoom", currentRoom);
     });
     
+    socket.on("disconnect", () => {
+        console.log("❌ Від'єднано від сервера");
+        statusDiv.textContent = "🔴 Від'єднано";
+        statusDiv.classList.add("disconnected");
+    });
+    
     socket.on("playSong", (index) => {
+        console.log("▶️ Відтворюємо пісню #" + index);
         playSong(index);
     });
     
     socket.on("systemMessage", (msg) => {
-        console.log(msg);
+        console.log("📢 " + msg);
+    });
+    
+    socket.on("connect_error", (error) => {
+        console.error("❌ Помилка підключення:", error);
+        statusDiv.textContent = "🔴 Помилка";
+        statusDiv.classList.add("disconnected");
     });
 }
 
-// YOUTUBE PLAYER
+// ========== YOUTUBE PLAYER ==========
 window.onYouTubeIframeAPIReady = function() {
+    console.log("YouTube API готовий");
     player = new YT.Player('player', {
         height: '100%',
         width: '100%',
         playerVars: {
             'autoplay': 1,
-            'controls': 1
+            'controls': 1,
+            'rel': 0
         },
         events: {
             'onStateChange': onPlayerStateChange
@@ -254,12 +291,16 @@ window.onYouTubeIframeAPIReady = function() {
 }
 
 function playSong(index) {
+    console.log("🎵 Запускаємо пісню:", SONG_LIBRARY[index].title);
+    
     const song = SONG_LIBRARY[index];
     currentLyrics = song.lyrics;
     
     if (player && player.loadVideoById) {
         player.loadVideoById(song.videoId);
         renderLyrics();
+    } else {
+        console.error("Player не готовий!");
     }
 }
 
@@ -275,7 +316,7 @@ function onPlayerStateChange(event) {
         if (lyricsInterval) clearInterval(lyricsInterval);
         lyricsInterval = setInterval(updateLyrics, 100);
     } else {
-        clearInterval(lyricsInterval);
+        if (lyricsInterval) clearInterval(lyricsInterval);
     }
 }
 
@@ -298,24 +339,39 @@ function updateLyrics() {
     });
 }
 
-// SONGS
+// ========== RENDER SONGS ==========
 function renderSongs() {
     songList.innerHTML = "";
+    
     SONG_LIBRARY.forEach((song, index) => {
         const div = document.createElement("div");
         div.className = "song-item";
-        div.innerHTML = `<img src="${song.thumb}"><span>${song.title}</span>`;
+        div.innerHTML = `
+            <span class="song-icon">🎤</span>
+            <span>${song.title}</span>
+        `;
+        
         div.onclick = () => {
+            console.log("Клік на пісню #" + index);
+            
+            if (!socket || !socket.connected) {
+                alert("Немає з'єднання з сервером!");
+                return;
+            }
+            
             socket.emit("playSong", {
                 room: currentRoom,
                 index: index
             });
         };
+        
         songList.appendChild(div);
     });
+    
+    console.log("✅ Відрендерено " + SONG_LIBRARY.length + " пісень");
 }
 
-// SONG LIBRARY
+// ========== SONG LIBRARY ==========
  const SONG_LIBRARY = [
             {
                 title: "YAKTAK, Svyatoslav Vakarchuk - На нічному небі",
@@ -571,9 +627,9 @@ function renderSongs() {
             }
         ];
 
+
+console.log("🎤 Karaoke клієнт завантажено");
 </script>
 
 </body>
 </html>
-
-

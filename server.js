@@ -1,9 +1,9 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const cors = require("cors");
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import cors from "cors";
 
 const app = express();
 const server = http.createServer(app);
@@ -18,6 +18,7 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const JWT_SECRET = "super_secret_key";
+
 
 // 🧠 Тимчасова БД (поки без Mongo)
 const users = [];
@@ -97,3 +98,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log("🎤 Karaoke backend ready on", PORT);
 });
+

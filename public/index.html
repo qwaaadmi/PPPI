@@ -59,8 +59,15 @@
             border-radius: 15px;
             overflow-y: auto;
         }
+        .sidebar::-webkit-scrollbar {
+            display: none;
+        }
+        .sidebar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
         .song-item {
-            padding: 15px;
+            padding: 10px;
             background: #262640;
             margin-bottom: 10px;
             border-radius: 8px;
@@ -74,8 +81,16 @@
             background: #ff0055;
             transform: translateX(5px);
         }
-        .song-icon {
-            font-size: 30px;
+        .song-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        .song-item span {
+            font-size: 14px;
+            line-height: 1.3;
         }
         .stage {
             flex: 1;
@@ -96,6 +111,13 @@
             height: 300px;
             overflow-y: auto;
             text-align: center;
+        }
+        #lyrics-box::-webkit-scrollbar {
+            display: none;
+        }
+        #lyrics-box {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
         .lyric-line {
             padding: 10px;
@@ -347,7 +369,8 @@ function renderSongs() {
         const div = document.createElement("div");
         div.className = "song-item";
         div.innerHTML = `
-            <span class="song-icon">🎤</span>
+            <img src="https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg" 
+                 onerror="this.src='https://img.youtube.com/vi/${song.videoId}/0.jpg'">
             <span>${song.title}</span>
         `;
         
@@ -372,7 +395,7 @@ function renderSongs() {
 }
 
 // ========== SONG LIBRARY ==========
- const SONG_LIBRARY = [
+const SONG_LIBRARY = [
             {
                 title: "YAKTAK, Svyatoslav Vakarchuk - На нічному небі",
                 videoId: "TTccdFybPUo",
@@ -626,7 +649,6 @@ function renderSongs() {
                 ]
             }
         ];
-
 
 console.log("🎤 Karaoke клієнт завантажено");
 </script>

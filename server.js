@@ -20,32 +20,9 @@ app.use(express.static("public"));
 const JWT_SECRET = "super_secret_key";
 
 /* =========================
-   🧠 Тимчасова БД (без Mongo)
+   🧠 Тимчасова БД
 ========================= */
 const users = [];
-
-/* =========================
-   🎵 Список пісень
-========================= */
-const songs = [
-    { id: 1, title: "Song One", url: "/songs/song1.mp3" },
-    { id: 2, title: "Song Two", url: "/songs/song2.mp3" },
-    { id: 3, title: "Song Three", url: "/songs/song3.mp3" }
-];
-
-/* =========================
-   TEST
-========================= */
-app.get("/", (req, res) => {
-    res.send("🎤 Karaoke backend is running");
-});
-
-/* =========================
-   SONGS API
-========================= */
-app.get("/api/songs", (req, res) => {
-    res.json(songs);
-});
 
 /* =========================
    REGISTER
@@ -89,43 +66,36 @@ app.post("/api/login", async (req, res) => {
 });
 
 /* =========================
-   🔐 SOCKET AUTH
+   SOCKET AUTH
 ========================= */
 io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
-    if (!token) {
-        return next(new Error("No token"));
-    }
+    if (!token) return next(new Error("No token"));
 
     try {
         const user = jwt.verify(token, JWT_SECRET);
         socket.user = user;
         next();
-    } catch (err) {
-        return next(new Error("Invalid token"));
+    } catch {
+        next(new Error("Invalid token"));
     }
 });
 
 /* =========================
-   🎤 SOCKET ROOMS + KARAOKE
+   SOCKET ROOMS
 ========================= */
 io.on("connection", socket => {
     console.log("🎤 Connected:", socket.user.username);
 
-    // Надсилаємо список пісень одразу після підключення
-    socket.emit("songsList", songs);
-
     socket.on("joinRoom", room => {
         socket.join(room);
         console.log(`${socket.user.username} joined room ${room}`);
+        io.to(room).emit("systemMessage", `${socket.user.username} увійшов у кімнату`);
     });
 
     socket.on("playSong", data => {
-        // data = { room, songId }
-        const song = songs.find(s => s.id === data.songId);
-        if (!song) return;
-
-        io.to(data.room).emit("playSong", song);
+        // data = { room, index }
+        io.to(data.room).emit("playSong", data.index);
     });
 
     socket.on("disconnect", () => {
@@ -134,10 +104,16 @@ io.on("connection", socket => {
 });
 
 /* =========================
-   START SERVER
+   TEST ROUTE
+========================= */
+app.get("/", (req, res) => {
+    res.send("🎤 Karaoke backend is running");
+});
+
+/* =========================
+   START
 ========================= */
 const PORT = process.env.PORT || 3000;
-
 server.listen(PORT, () => {
     console.log("🎤 Karaoke backend ready on port", PORT);
 });

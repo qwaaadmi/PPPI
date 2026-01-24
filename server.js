@@ -81,21 +81,21 @@ io.use((socket, next) => {
 /* =========================
    SOCKET ROOMS
 ========================= */
-io.on("connection", socket => {
-    console.log("🎤 Connected:", socket.user.username);
+io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) {
+        console.log("❌ No token");
+        return next(new Error("No token"));
+    }
 
-    socket.on("joinRoom", room => {
-        socket.join(room);
-        console.log(`${socket.user.username} joined room ${room}`);
-    });
-
-    socket.on("playSong", data => {
-        io.to(data.room).emit("playSong", data.index);
-    });
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        socket.user = user;
+        next();
+    } catch (err) {
+        console.log("❌ Invalid token", err.message);
+        next(new Error("Invalid token"));
+    }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log("🎤 Karaoke backend ready on", PORT);
-});
 

@@ -121,6 +121,7 @@
             color: #aaa;
         }
     </style>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 
 <body>
@@ -236,7 +237,7 @@ function renderSongs() {
     SONG_LIBRARY.forEach((song, index) => {
         const div = document.createElement("div");
         div.className = "song-item";
-        div.innerHTML = `<img src="${song.thumb}"><span>${song.title}</span>`;
+       div.innerHTML = `<img src="${song.thumb}" style="width:50px;height:50px;object-fit:cover;border-radius:4px"><span>${song.title}</span>`;
         div.onclick = () => {
     socket.emit("playSong", {
         room: currentRoom,
@@ -522,7 +523,7 @@ const roomDisplay = document.getElementById("room-display");
         /* =========================
    1. API URL (Render)
 ========================= */
-
+const API_URL = "https://karaoke-dk7o.onrender.com/";
         /* =========================
            2. DOM
         ========================= */
@@ -596,6 +597,58 @@ const roomDisplay = document.getElementById("room-display");
         function joinRoom(room) {
             socket.emit("joinRoom", { room });
         }
+    let player;
+let currentLyrics = [];
+
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('player', {
+        height: '100%',
+        width: '100%',
+        playerVars: { 'autoplay': 1, 'controls': 1 },
+        events: {
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+function playSong(index) {
+    const song = SONG_LIBRARY[index];
+    currentLyrics = song.lyrics;
+    
+    player.loadVideoById(song.videoId);
+    renderLyrics();
+}
+
+function renderLyrics() {
+    const box = document.getElementById('lyrics-box');
+    box.innerHTML = currentLyrics
+        .map((line, i) => `<div class="lyric-line" data-time="${line.time}">${line.text}</div>`)
+        .join('');
+}
+
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.PLAYING) {
+        setInterval(updateLyrics, 100);
+    }
+}
+
+function updateLyrics() {
+    if (!player.getCurrentTime) return;
+    
+    const time = player.getCurrentTime();
+    const lines = document.querySelectorAll('.lyric-line');
+    
+    lines.forEach((line, i) => {
+        const lineTime = parseFloat(line.dataset.time);
+        const nextTime = currentLyrics[i + 1]?.time || Infinity;
+        
+        if (time >= lineTime && time < nextTime) {
+            line.classList.add('active');
+        } else {
+            line.classList.remove('active');
+        }
+    });
+}
 </script>
 
 </body>

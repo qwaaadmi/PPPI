@@ -7,6 +7,11 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             background: #0f0f1a;
             color: white;
@@ -15,7 +20,6 @@
             flex-direction: column;
             align-items: center;
             height: 100vh;
-            margin: 0;
             overflow: hidden;
         }
         .screen {
@@ -30,7 +34,7 @@
             display: flex;
         }
         input, button {
-            padding: 12px;
+            padding: 12px 20px;
             margin: 10px;
             border-radius: 8px;
             border: none;
@@ -41,9 +45,11 @@
             color: white;
             cursor: pointer;
             font-weight: bold;
+            transition: all 0.3s;
         }
         button:hover {
             background: #cc0044;
+            transform: scale(1.05);
         }
         .main-layout {
             display: flex;
@@ -62,12 +68,23 @@
             background: #1a1a2e;
             padding: 15px;
             border-radius: 15px;
-            max-height: 200px;
+            max-height: 150px;
         }
         .users-box h3 {
             margin: 0 0 10px 0;
             font-size: 14px;
             color: #aaa;
+        }
+        #users-list {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        #users-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        #users-list::-webkit-scrollbar-thumb {
+            background: #ff0055;
+            border-radius: 10px;
         }
         .user-item {
             padding: 8px;
@@ -84,6 +101,11 @@
             height: 8px;
             background: #00ff00;
             border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         .filter-box {
             background: #1a1a2e;
@@ -96,14 +118,18 @@
             color: #aaa;
         }
         .filter-btn {
-            padding: 8px 15px;
-            margin: 5px;
+            padding: 8px 12px;
+            margin: 3px;
             background: #262640;
             border: none;
             color: white;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .filter-btn:hover {
+            background: #ff0055;
         }
         .filter-btn.active {
             background: #ff0055;
@@ -116,11 +142,11 @@
             overflow-y: auto;
         }
         .sidebar::-webkit-scrollbar {
-            display: none;
+            width: 8px;
         }
-        .sidebar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #ff0055;
+            border-radius: 10px;
         }
         .song-item {
             padding: 10px;
@@ -153,27 +179,50 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 20px;
         }
         #player-wrapper {
             width: 70%;
             aspect-ratio: 16/9;
-            margin-bottom: 20px;
             border-radius: 15px;
             overflow: hidden;
             background: #000;
+            position: relative;
+        }
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+        .video-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #ff0055;
+            padding: 20px;
+            background: rgba(0,0,0,0.8);
+            border-radius: 10px;
+            display: none;
+        }
+        .video-error.show {
+            display: block;
         }
         #lyrics-box {
             width: 80%;
-            height: 300px;
+            height: 250px;
             overflow-y: auto;
             text-align: center;
+            padding: 20px;
+            background: #1a1a2e;
+            border-radius: 15px;
         }
         #lyrics-box::-webkit-scrollbar {
-            display: none;
+            width: 8px;
         }
-        #lyrics-box {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        #lyrics-box::-webkit-scrollbar-thumb {
+            background: #ff0055;
+            border-radius: 10px;
         }
         .lyric-line {
             padding: 10px;
@@ -183,8 +232,9 @@
         }
         .lyric-line.active {
             color: #ffeb3b;
-            font-size: 32px;
+            font-size: 28px;
             font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 235, 59, 0.5);
         }
         .room-info {
             position: absolute;
@@ -192,6 +242,9 @@
             right: 20px;
             color: #aaa;
             font-size: 14px;
+            background: #1a1a2e;
+            padding: 8px 15px;
+            border-radius: 20px;
         }
         .status {
             position: absolute;
@@ -201,6 +254,7 @@
             background: #00aa00;
             border-radius: 20px;
             font-size: 12px;
+            font-weight: bold;
         }
         .status.disconnected {
             background: #aa0000;
@@ -209,9 +263,8 @@
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-screen" class="screen active">
-    <h1>🎤 Karaoke Stars</h1>
+    <h1 style="margin-bottom: 20px;">🎤 Karaoke Stars</h1>
     <input id="username" placeholder="Логін">
     <input id="password" type="password" placeholder="Пароль">
     <input id="room" placeholder="Кімната">
@@ -219,37 +272,46 @@
     <button onclick="register()">Реєстрація</button>
 </div>
 
-<!-- APP -->
 <div id="app-screen" class="screen">
     <div class="status" id="status">🔴 Не підключено</div>
     <div class="room-info" id="room-display"></div>
+    
     <div class="main-layout">
         <div class="left-panel">
             <div class="users-box">
-                <h3>👥 Онлайн у кімнаті</h3>
-                <div id="users-list"></div>
+                <h3>Онлайн у кімнаті</h3>
+                <div id="users-list">
+                    <div style="color:#666; font-size:12px;">Завантаження...</div>
+                </div>
             </div>
+            
             <div class="filter-box">
-                <h3>🌍 Мова пісень</h3>
+                <h3>Мова пісень</h3>
                 <button class="filter-btn active" onclick="filterSongs('all')">Всі</button>
-                <button class="filter-btn" onclick="filterSongs('uk')">🇺🇦 Українська</button>
-                <button class="filter-btn" onclick="filterSongs('en')">🇺🇸 Англійська</button>
+                <button class="filter-btn" onclick="filterSongs('uk')">Українська</button>
+                <button class="filter-btn" onclick="filterSongs('en')">Англійська</button>
             </div>
+            
             <div class="sidebar" id="song-list"></div>
         </div>
+        
         <div class="stage">
             <div id="player-wrapper">
                 <div id="player"></div>
+                <div class="video-error" id="video-error">
+                    ⚠️ Відео недоступне для відтворення<br>
+                    <small>Спробуйте іншу пісню</small>
+                </div>
             </div>
+            
             <div id="lyrics-box">
-                <div style="color:#444; font-size:20px;">Оберіть пісню зі списку 👈</div>
+                <div style="color:#666; font-size:18px;">Оберіть пісню зі списку зліва</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// ========== CONFIG ==========
 const API_URL = "https://karaoke-dk7o.onrender.com";
 let socket = null;
 let currentRoom = null;
@@ -257,9 +319,7 @@ let player = null;
 let currentLyrics = [];
 let lyricsInterval = null;
 let currentFilter = 'all';
-let isSyncing = false;
 
-// ========== DOM ==========
 const loginScreen = document.getElementById("login-screen");
 const appScreen = document.getElementById("app-screen");
 const usernameInput = document.getElementById("username");
@@ -268,8 +328,8 @@ const roomInput = document.getElementById("room");
 const songList = document.getElementById("song-list");
 const roomDisplay = document.getElementById("room-display");
 const statusDiv = document.getElementById("status");
+const videoError = document.getElementById("video-error");
 
-// ========== AUTH ==========
 async function register() {
     const username = usernameInput.value.trim();
     const password = passwordInput.value.trim();
@@ -288,7 +348,7 @@ async function register() {
         const data = await res.json();
         alert(data.message);
     } catch (error) {
-        alert("Помилка з'єднання: " + error.message);
+        alert("Помилка: " + error.message);
     }
 }
 
@@ -323,13 +383,12 @@ async function login() {
         initSocket();
         renderSongs();
     } catch (error) {
-        alert("Помилка з'єднання: " + error.message);
+        alert("Помилка: " + error.message);
     }
 }
 
-// ========== SOCKET ==========
 function initSocket() {
-    console.log("Підключаємося до Socket.IO...");
+    console.log("Підключаємося...");
     
     socket = io(API_URL, {
         auth: { token: localStorage.getItem("token") },
@@ -337,66 +396,33 @@ function initSocket() {
     });
     
     socket.on("connect", () => {
-        console.log("✅ Підключено до сервера!");
+        console.log("✅ Підключено!");
         statusDiv.textContent = "🟢 Підключено";
         statusDiv.classList.remove("disconnected");
         socket.emit("joinRoom", currentRoom);
     });
     
     socket.on("disconnect", () => {
-        console.log("❌ Від'єднано від сервера");
+        console.log("❌ Від'єднано");
         statusDiv.textContent = "🔴 Від'єднано";
         statusDiv.classList.add("disconnected");
     });
     
     socket.on("playSong", (data) => {
-        console.log("▶️ Відтворюємо пісню #" + data.index);
-        playSong(data.index, data.startTime, data.isPlaying);
+        console.log("▶️ Пісня #" + data.index);
+        playSong(data.index);
     });
     
     socket.on("roomUsers", (users) => {
-        console.log("👥 Користувачі:", users);
+        console.log("👥 Користувачів:", users.length);
         updateUsersList(users);
     });
     
-    socket.on("pauseVideo", (time) => {
-        if (player && !isSyncing) {
-            isSyncing = true;
-            player.pauseVideo();
-            player.seekTo(time);
-            setTimeout(() => isSyncing = false, 100);
-        }
-    });
-    
-    socket.on("playVideo", (time) => {
-        if (player && !isSyncing) {
-            isSyncing = true;
-            player.seekTo(time);
-            player.playVideo();
-            setTimeout(() => isSyncing = false, 100);
-        }
-    });
-    
-    socket.on("seekVideo", (time) => {
-        if (player && !isSyncing) {
-            isSyncing = true;
-            player.seekTo(time);
-            setTimeout(() => isSyncing = false, 100);
-        }
-    });
-    
     socket.on("systemMessage", (msg) => {
-        console.log("📢 " + msg);
-    });
-    
-    socket.on("connect_error", (error) => {
-        console.error("❌ Помилка підключення:", error);
-        statusDiv.textContent = "🔴 Помилка";
-        statusDiv.classList.add("disconnected");
+        console.log("📢", msg);
     });
 }
 
-// ========== YOUTUBE PLAYER ==========
 window.onYouTubeIframeAPIReady = function() {
     console.log("YouTube API готовий");
     player = new YT.Player('player', {
@@ -405,51 +431,64 @@ window.onYouTubeIframeAPIReady = function() {
         playerVars: {
             'autoplay': 0,
             'controls': 1,
-            'rel': 0
+            'rel': 0,
+            'modestbranding': 1
         },
         events: {
-            'onStateChange': onPlayerStateChange
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange,
+            'onError': onPlayerError
         }
     });
 }
 
-function playSong(index, startTime = 0, shouldPlay = true) {
-    console.log("🎵 Запускаємо пісню:", SONG_LIBRARY[index].title);
+function onPlayerReady(event) {
+    console.log("Player готовий");
+    videoError.classList.remove('show');
+}
+
+function onPlayerError(event) {
+    console.error("Помилка відео:", event.data);
+    videoError.classList.add('show');
     
+    setTimeout(() => {
+        videoError.classList.remove('show');
+    }, 3000);
+}
+
+function playSong(index) {
     const song = SONG_LIBRARY[index];
+    console.log("🎵", song.title);
+    
     currentLyrics = song.lyrics;
+    videoError.classList.remove('show');
     
     if (player && player.loadVideoById) {
-        player.loadVideoById({
-            videoId: song.videoId,
-            startSeconds: startTime
-        });
-        
-        if (shouldPlay) {
-            setTimeout(() => player.playVideo(), 500);
-        } else {
-            setTimeout(() => player.pauseVideo(), 500);
+        try {
+            player.loadVideoById({
+                videoId: song.videoId,
+                startSeconds: 0
+            });
+            renderLyrics();
+        } catch (error) {
+            console.error("Помилка:", error);
+            videoError.classList.add('show');
         }
-        
-        renderLyrics();
-    } else {
-        console.error("Player не готовий!");
     }
 }
 
+function renderLyrics() {
+    const box = document.getElementById('lyrics-box');
+    box.innerHTML = currentLyrics
+        .map(line => `<div class="lyric-line" data-time="${line.time}">${line.text}</div>`)
+        .join('');
+}
+
 function onPlayerStateChange(event) {
-    if (isSyncing) return;
-    
-    const time = player.getCurrentTime();
-    
     if (event.data === YT.PlayerState.PLAYING) {
-        socket.emit("playVideo", { room: currentRoom, time: time });
-        
         if (lyricsInterval) clearInterval(lyricsInterval);
         lyricsInterval = setInterval(updateLyrics, 100);
-    } else if (event.data === YT.PlayerState.PAUSED) {
-        socket.emit("pauseVideo", { room: currentRoom, time: time });
-        
+    } else {
         if (lyricsInterval) clearInterval(lyricsInterval);
     }
 }
@@ -473,16 +512,12 @@ function updateLyrics() {
     });
 }
 
-function renderLyrics() {
-    const box = document.getElementById('lyrics-box');
-    box.innerHTML = currentLyrics
-        .map((line) => `<div class="lyric-line" data-time="${line.time}">${line.text}</div>`)
-        .join('');
-}
-
-// ========== USERS LIST ==========
 function updateUsersList(users) {
     const usersList = document.getElementById('users-list');
+    if (users.length === 0) {
+        usersList.innerHTML = '<div style="color:#666; font-size:12px;">Немає користувачів</div>';
+        return;
+    }
     usersList.innerHTML = users
         .map(user => `
             <div class="user-item">
@@ -493,74 +528,56 @@ function updateUsersList(users) {
         .join('');
 }
 
-// ========== FILTER ==========
 function filterSongs(lang) {
     currentFilter = lang;
-    
-    // Оновлюємо активну кнопку
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
-    
     renderSongs();
 }
 
-// ========== RENDER SONGS ==========
 function renderSongs() {
     songList.innerHTML = "";
     
-    const filteredSongs = SONG_LIBRARY.filter(song => {
-        if (currentFilter === 'all') return true;
-        return song.lang === currentFilter;
-    });
+    const filtered = SONG_LIBRARY.filter(song => 
+        currentFilter === 'all' || song.lang === currentFilter
+    );
     
-    if (filteredSongs.length === 0) {
-        songList.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">Немає пісень цією мовою</div>';
+    if (filtered.length === 0) {
+        songList.innerHTML = '<div style="color:#666; padding:20px; text-align:center;">Немає пісень</div>';
         return;
     }
     
-    filteredSongs.forEach((song) => {
+    filtered.forEach(song => {
         const index = SONG_LIBRARY.indexOf(song);
         const div = document.createElement("div");
         div.className = "song-item";
         div.innerHTML = `
             <img src="https://img.youtube.com/vi/${song.videoId}/mqdefault.jpg" 
-                 onerror="this.src='https://img.youtube.com/vi/${song.videoId}/0.jpg'">
+                 onerror="this.src='https://img.youtube.com/vi/${song.videoId}/0.jpg'"
+                 alt="${song.title}">
             <span>${song.title}</span>
         `;
         
         div.onclick = () => {
-            console.log("Клік на пісню #" + index);
-            
             if (!socket || !socket.connected) {
-                alert("Немає з'єднання з сервером!");
+                alert("Немає з'єднання!");
                 return;
             }
-            
-            socket.emit("playSong", {
-                room: currentRoom,
-                index: index
-            });
+            socket.emit("playSong", { room: currentRoom, index: index });
         };
         
         songList.appendChild(div);
     });
-    
-    console.log("✅ Відрендерено " + filteredSongs.length + " пісень");
 }
 
-// ========== SONG LIBRARY ==========
 const SONG_LIBRARY = [
     {
-        title: "YAKTAK, Svyatoslav Vakarchuk - На нічному небі",
-        videoId: "TTccdFybPUo",
+        title: "YAKTAK - На нічному небі",
+        videoId: "M5F6FqKq1tI",
         lang: "uk",
         lyrics: [
             { time: 0, text: "Уночі я тобі так просто під гітару" },
-            { time: 6, text: "Заспіваю всі свої пісні" },
-            { time: 9, text: "Розкажи, чому лише про тебе" },
-            { time: 12, text: "Написані вони" }
+            { time: 6, text: "Заспіваю всі свої пісні" }
         ]
     },
     {
@@ -568,34 +585,7 @@ const SONG_LIBRARY = [
         videoId: "ZIOqT5e_JT0",
         lang: "uk",
         lyrics: [
-            { time: 23, text: "Пацан не пропаде" },
-            { time: 27, text: "Якщо собака хоче бабу" }
-        ]
-    },
-    {
-        title: "Шугар - Олєг",
-        videoId: "U5YFv7VxpYg",
-        lang: "uk",
-        lyrics: [
-            { time: 8, text: "А вона як вивіска універмагу" },
-            { time: 13, text: "Привертає всю увагу" }
-        ]
-    },
-    {
-        title: "Шугар - Тьотя",
-        videoId: "DFGO4OuvVM0",
-        lang: "uk",
-        lyrics: [
-            { time: 0, text: "Вона відпочиває" },
-            { time: 4, text: "Цей вечір" }
-        ]
-    },
-    {
-        title: "BESSMERTNII - ЗА ДУШS",
-        videoId: "0_eGVKyWGAw",
-        lang: "uk",
-        lyrics: [
-            { time: 28, text: "Не думал когда-то что время придет" }
+            { time: 23, text: "Пацан не пропаде" }
         ]
     },
     {
@@ -604,10 +594,7 @@ const SONG_LIBRARY = [
         lang: "en",
         lyrics: [
             { time: 12, text: "First things first" },
-            { time: 13, text: "I'ma say all the words inside my head" },
-            { time: 16, text: "I'm fired up and tired of the way that things have been" },
-            { time: 24, text: "Second thing second" },
-            { time: 25, text: "Don't you tell me what you think that I could be" }
+            { time: 13, text: "I'ma say all the words inside my head" }
         ]
     },
     {
@@ -615,26 +602,12 @@ const SONG_LIBRARY = [
         videoId: "JGwWNGJdvx8",
         lang: "en",
         lyrics: [
-            { time: 28, text: "The club isn't the best place to find a lover" },
-            { time: 31, text: "So the bar is where I go" },
-            { time: 35, text: "Me and my friends at the table doing shots" },
-            { time: 38, text: "Drinking fast and then we talk slow" }
-        ]
-    },
-    {
-        title: "Adele - Someone Like You",
-        videoId: "hLQl3WQQoQ0",
-        lang: "en",
-        lyrics: [
-            { time: 15, text: "I heard that you're settled down" },
-            { time: 20, text: "That you found a girl and you're married now" },
-            { time: 31, text: "I heard that your dreams came true" },
-            { time: 36, text: "Guess she gave you things I didn't give to you" }
+            { time: 28, text: "The club isn't the best place to find a lover" }
         ]
     }
 ];
 
-console.log("🎤 Karaoke клієнт завантажено");
+console.log("🎤 Готово!");
 </script>
 
 </body>

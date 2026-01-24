@@ -8,13 +8,16 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 
+/* ====== PATH ====== */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ====== APP ====== */
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -27,22 +30,29 @@ app.get("/", (req, res) => {
 });
 
 /* ====== DB ====== */
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("Mongo error:", err));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB error:", err));
 
 /* ====== MODELS ====== */
-const User = mongoose.model("User", new mongoose.Schema({
-  username: String,
-  email: { type: String, unique: true },
-  password: String
-}));
+const User = mongoose.model(
+  "User",
+  new mongoose.Schema({
+    username: String,
+    email: { type: String, unique: true },
+    password: String
+  })
+);
 
-const Room = mongoose.model("Room", new mongoose.Schema({
-  code: String,
-  host: String,
-  currentSong: Number
-}));
+const Room = mongoose.model(
+  "Room",
+  new mongoose.Schema({
+    code: String,
+    host: String,
+    currentSong: Number
+  })
+);
 
 /* ====== AUTH ====== */
 app.post("/auth/register", async (req, res) => {
@@ -54,6 +64,7 @@ app.post("/auth/register", async (req, res) => {
 
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
+
   const user = await User.findOne({ email });
   if (!user) return res.sendStatus(401);
 
@@ -64,6 +75,7 @@ app.post("/auth/login", async (req, res) => {
     { username: user.username },
     process.env.JWT_SECRET
   );
+
   res.json({ token });
 });
 
@@ -82,6 +94,7 @@ io.use((socket, next) => {
 
 /* ====== SOCKET LOGIC ====== */
 io.on("connection", socket => {
+  console.log("🟢 User connected:", socket.user.username);
 
   socket.on("joinRoom", async ({ code }) => {
     socket.join(code);
@@ -97,23 +110,29 @@ io.on("connection", socket => {
     }
 
     io.to(code).emit("userJoined", socket.user.username);
-    if (room.currentSong !== null)
+
+    if (room.currentSong !== null) {
       socket.emit("playSong", room.currentSong);
+    }
   });
 
   socket.on("changeSong", async ({ code, songIndex }) => {
-    await Room.updateOne({ code }, { currentSong: songIndex });
+    await Room.updateOne(
+      { code },
+      { currentSong: songIndex }
+    );
     io.to(code).emit("playSong", songIndex);
   });
 
   socket.on("playerStateChange", ({ state }) => {
-    io.to(socket.room).emit("syncState", state);
+    if (socket.room) {
+      io.to(socket.room).emit("syncState", state);
+    }
   });
-
 });
 
 /* ====== START ====== */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("🎤 Karaoke backend ready");
+  console.log("🎤 Karaoke backend ready on port", PORT);
 });

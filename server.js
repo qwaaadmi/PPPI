@@ -19,7 +19,7 @@ const JWT_SECRET = "super_secret_key";
 // тимчасова БД в памʼяті
 const users = [];
 
-// тестовий маршрут
+// тест
 app.get("/", (req, res) => {
   res.send("Server with Auth + Socket Auth is working!");
 });
@@ -27,14 +27,10 @@ app.get("/", (req, res) => {
 // реєстрація
 app.post("/api/register", async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.json({ message: "Fill all fields" });
-  }
+  if (!username || !password) return res.json({ message: "Fill all fields" });
 
   const exists = users.find(u => u.username === username);
-  if (exists) {
-    return res.json({ message: "User already exists" });
-  }
+  if (exists) return res.json({ message: "User already exists" });
 
   const hash = await bcrypt.hash(password, 10);
   users.push({ username, password: hash });
@@ -47,20 +43,16 @@ app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   const user = users.find(u => u.username === username);
-  if (!user) {
-    return res.json({ message: "User not found" });
-  }
+  if (!user) return res.json({ message: "User not found" });
 
   const ok = await bcrypt.compare(password, user.password);
-  if (!ok) {
-    return res.json({ message: "Wrong password" });
-  }
+  if (!ok) return res.json({ message: "Wrong password" });
 
   const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
   res.json({ token });
 });
 
-// 🔐 Socket.IO auth middleware
+// 🔐 Socket auth
 io.use((socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
@@ -69,14 +61,23 @@ io.use((socket, next) => {
     const user = jwt.verify(token, JWT_SECRET);
     socket.user = user;
     next();
-  } catch (err) {
+  } catch {
     next(new Error("Invalid token"));
   }
 });
 
-// socket logic
+// 🎤 Socket logic + rooms
 io.on("connection", socket => {
-  console.log("🎤 Socket connected:", socket.user.username);
+  console.log("🎤 Connected:", socket.user.username);
+
+  socket.on("joinRoom", room => {
+    socket.join(room);
+    console.log(`${socket.user.username} joined room ${room}`);
+  });
+
+  socket.on("playSong", data => {
+    io.to(data.room).emit("playSong", data.index);
+  });
 
   socket.on("disconnect", () => {
     console.log("👋 Disconnected:", socket.user.username);

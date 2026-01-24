@@ -11,14 +11,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// статичні файли
-app.use(express.static(path.join(__dirname, "public")));
-
-// головна сторінка
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
+/* ====== APP ====== */
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
@@ -26,8 +19,17 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.use(cors());
 app.use(express.json());
 
+/* ====== STATIC ====== */
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 /* ====== DB ====== */
-mongoose.connect(process.env.MONGO_URI);
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.error("Mongo error:", err));
 
 /* ====== MODELS ====== */
 const User = mongoose.model("User", new mongoose.Schema({
@@ -58,14 +60,20 @@ app.post("/auth/login", async (req, res) => {
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.sendStatus(401);
 
-  const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET);
+  const token = jwt.sign(
+    { username: user.username },
+    process.env.JWT_SECRET
+  );
   res.json({ token });
 });
 
 /* ====== SOCKET AUTH ====== */
 io.use((socket, next) => {
   try {
-    socket.user = jwt.verify(socket.handshake.auth.token, process.env.JWT_SECRET);
+    socket.user = jwt.verify(
+      socket.handshake.auth.token,
+      process.env.JWT_SECRET
+    );
     next();
   } catch {
     next(new Error("Unauthorized"));
@@ -104,5 +112,8 @@ io.on("connection", socket => {
 
 });
 
-server.listen(3000, () => console.log("🎤 Karaoke backend ready"));
-
+/* ====== START ====== */
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("🎤 Karaoke backend ready");
+});

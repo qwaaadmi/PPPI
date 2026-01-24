@@ -1,138 +1,99 @@
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
 
-/* ====== PATH ====== */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-/* ====== APP ====== */
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
+    cors: {
+        origin: "*"
+    }
 });
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
-/* ====== STATIC ====== */
-app.use(express.static(path.join(__dirname, "public")));
+const JWT_SECRET = "super_secret_key";
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// 🧠 Тимчасова БД (поки без Mongo)
+const users = [];
+
+/* =========================
+   REGISTER
+========================= */
+app.post("/api/register", async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.json({ message: "Заповни всі поля" });
+    }
+
+    const exists = users.find(u => u.username === username);
+    if (exists) {
+        return res.json({ message: "Користувач вже існує" });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    users.push({ username, password: hash });
+
+    res.json({ message: "Реєстрація успішна" });
 });
 
-/* ====== DB ====== */
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch(err => console.error("❌ MongoDB error:", err));
+/* =========================
+   LOGIN
+========================= */
+app.post("/api/login", async (req, res) => {
+    const { username, password } = req.body;
 
-/* ====== MODELS ====== */
-const User = mongoose.model(
-  "User",
-  new mongoose.Schema({
-    username: String,
-    email: { type: String, unique: true },
-    password: String
-  })
-);
+    const user = users.find(u => u.username === username);
+    if (!user) {
+        return res.json({ message: "Користувача не знайдено" });
+    }
 
-const Room = mongoose.model(
-  "Room",
-  new mongoose.Schema({
-    code: String,
-    host: String,
-    currentSong: Number
-  })
-);
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+        return res.json({ message: "Невірний пароль" });
+    }
 
-/* ====== AUTH ====== */
-app.post("/auth/register", async (req, res) => {
-  const { username, email, password } = req.body;
-  const hash = await bcrypt.hash(password, 10);
-  await User.create({ username, email, password: hash });
-  res.json({ ok: true });
+    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token });
 });
 
-app.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  const user = await User.findOne({ email });
-  if (!user) return res.sendStatus(401);
-
-  const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.sendStatus(401);
-
-  const token = jwt.sign(
-    { username: user.username },
-    process.env.JWT_SECRET
-  );
-
-  res.json({ token });
-});
-
-/* ====== SOCKET AUTH ====== */
+/* =========================
+   SOCKET AUTH
+========================= */
 io.use((socket, next) => {
-  try {
-    socket.user = jwt.verify(
-      socket.handshake.auth.token,
-      process.env.JWT_SECRET
-    );
-    next();
-  } catch {
-    next(new Error("Unauthorized"));
-  }
+    try {
+        const token = socket.handshake.auth.token;
+        const user = jwt.verify(token, JWT_SECRET);
+        socket.user = user;
+        next();
+    } catch {
+        next(new Error("Auth error"));
+    }
 });
 
-/* ====== SOCKET LOGIC ====== */
+/* =========================
+   SOCKET ROOMS
+========================= */
 io.on("connection", socket => {
-  console.log("🟢 User connected:", socket.user.username);
+    console.log("🎤 Connected:", socket.user.username);
 
-  socket.on("joinRoom", async ({ code }) => {
-    socket.join(code);
-    socket.room = code;
+    socket.on("joinRoom", room => {
+        socket.join(room);
+        console.log(`${socket.user.username} joined room ${room}`);
+    });
 
-    let room = await Room.findOne({ code });
-    if (!room) {
-      room = await Room.create({
-        code,
-        host: socket.user.username,
-        currentSong: null
-      });
-    }
-
-    io.to(code).emit("userJoined", socket.user.username);
-
-    if (room.currentSong !== null) {
-      socket.emit("playSong", room.currentSong);
-    }
-  });
-
-  socket.on("changeSong", async ({ code, songIndex }) => {
-    await Room.updateOne(
-      { code },
-      { currentSong: songIndex }
-    );
-    io.to(code).emit("playSong", songIndex);
-  });
-
-  socket.on("playerStateChange", ({ state }) => {
-    if (socket.room) {
-      io.to(socket.room).emit("syncState", state);
-    }
-  });
+    socket.on("playSong", data => {
+        io.to(data.room).emit("playSong", data.index);
+    });
 });
 
-/* ====== START ====== */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("🎤 Karaoke backend ready on port", PORT);
+    console.log("🎤 Karaoke backend ready on", PORT);
 });

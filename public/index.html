@@ -237,7 +237,12 @@ function renderSongs() {
         const div = document.createElement("div");
         div.className = "song-item";
         div.innerHTML = `<img src="${song.thumb}"><span>${song.title}</span>`;
-        div.onclick = () => socket.emit("playSong", index);
+        div.onclick = () => {
+    socket.emit("playSong", {
+        room: currentRoom,
+        index: index
+    });
+};
         songList.appendChild(div);
     });
 }
@@ -596,4 +601,5 @@ const roomDisplay = document.getElementById("room-display");
 
 </body>
 </html>
+
 

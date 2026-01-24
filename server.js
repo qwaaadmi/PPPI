@@ -5,6 +5,19 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// статичні файли
+app.use(express.static(path.join(__dirname, "public")));
+
+// головна сторінка
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -92,3 +105,4 @@ io.on("connection", socket => {
 });
 
 server.listen(3000, () => console.log("🎤 Karaoke backend ready"));
+

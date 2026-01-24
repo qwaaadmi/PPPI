@@ -21,7 +21,7 @@ const users = [];
 
 // тестовий маршрут
 app.get("/", (req, res) => {
-  res.send("Server with Auth is working!");
+  res.send("Server with Auth + Socket Auth is working!");
 });
 
 // реєстрація
@@ -60,9 +60,27 @@ app.post("/api/login", async (req, res) => {
   res.json({ token });
 });
 
-// Socket.IO без auth поки
+// 🔐 Socket.IO auth middleware
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("No token"));
+
+    const user = jwt.verify(token, JWT_SECRET);
+    socket.user = user;
+    next();
+  } catch (err) {
+    next(new Error("Invalid token"));
+  }
+});
+
+// socket logic
 io.on("connection", socket => {
-  console.log("Client connected:", socket.id);
+  console.log("🎤 Socket connected:", socket.user.username);
+
+  socket.on("disconnect", () => {
+    console.log("👋 Disconnected:", socket.user.username);
+  });
 });
 
 const PORT = process.env.PORT || 3000;

@@ -265,9 +265,9 @@
 
 <div id="login-screen" class="screen active">
     <h1 style="margin-bottom: 20px;">🎤 Karaoke Stars</h1>
-    <input id="username" placeholder="Логін">
-    <input id="password" type="password" placeholder="Пароль">
-    <input id="room" placeholder="Кімната">
+    <input id="username" placeholder="Логін" value="test">
+    <input id="password" type="password" placeholder="Пароль" value="123">
+    <input id="room" placeholder="Кімната" value="1">
     <button onclick="login()">Увійти</button>
     <button onclick="register()">Реєстрація</button>
 </div>
@@ -279,17 +279,17 @@
     <div class="main-layout">
         <div class="left-panel">
             <div class="users-box">
-                <h3>Онлайн у кімнаті</h3>
+                <h3>👥 Онлайн у кімнаті</h3>
                 <div id="users-list">
                     <div style="color:#666; font-size:12px;">Завантаження...</div>
                 </div>
             </div>
             
             <div class="filter-box">
-                <h3>Мова пісень</h3>
+                <h3>🌍 Мова пісень</h3>
                 <button class="filter-btn active" onclick="filterSongs('all')">Всі</button>
-                <button class="filter-btn" onclick="filterSongs('uk')">Українська</button>
-                <button class="filter-btn" onclick="filterSongs('en')">Англійська</button>
+                <button class="filter-btn" onclick="filterSongs('uk')">🇺🇦 Українська</button>
+                <button class="filter-btn" onclick="filterSongs('en')">🇺🇸 Англійська</button>
             </div>
             
             <div class="sidebar" id="song-list"></div>
@@ -305,7 +305,7 @@
             </div>
             
             <div id="lyrics-box">
-                <div style="color:#666; font-size:18px;">Оберіть пісню зі списку зліва</div>
+                <div style="color:#666; font-size:18px;">Оберіть пісню зі списку 👈</div>
             </div>
         </div>
     </div>
@@ -572,20 +572,35 @@ function renderSongs() {
 
 const SONG_LIBRARY = [
     {
-        title: "YAKTAK - На нічному небі",
-        videoId: "M5F6FqKq1tI",
+        title: "Океан Ельзи - Обійми",
+        videoId: "dgCoRLzuidg",
         lang: "uk",
         lyrics: [
-            { time: 0, text: "Уночі я тобі так просто під гітару" },
-            { time: 6, text: "Заспіваю всі свої пісні" }
+            { time: 15, text: "Знову день минає" },
+            { time: 18, text: "І знову ніч іде" },
+            { time: 23, text: "А хтось когось кохає" },
+            { time: 27, text: "А хтось когось чекає" }
         ]
     },
     {
-        title: "SKOFKA - Крузак",
-        videoId: "ZIOqT5e_JT0",
+        title: "СКАЙ - Місяць",
+        videoId: "G1L1U-DTUWc",
         lang: "uk",
         lyrics: [
-            { time: 23, text: "Пацан не пропаде" }
+            { time: 10, text: "Ти для мене місяць" },
+            { time: 14, text: "Я для тебе зірка" },
+            { time: 18, text: "Ми з тобою разом" },
+            { time: 22, text: "Наче сонце й вітер" }
+        ]
+    },
+    {
+        title: "Время и Стекло - Песня 404",
+        videoId: "gCRtyFqeN8E",
+        lang: "uk",
+        lyrics: [
+            { time: 20, text: "Я буду тебе ждать" },
+            { time: 24, text: "Ты только не исчезай" },
+            { time: 28, text: "404, нас не найти" }
         ]
     },
     {
@@ -594,15 +609,28 @@ const SONG_LIBRARY = [
         lang: "en",
         lyrics: [
             { time: 12, text: "First things first" },
-            { time: 13, text: "I'ma say all the words inside my head" }
+            { time: 13, text: "I'ma say all the words inside my head" },
+            { time: 16, text: "I'm fired up and tired" }
         ]
     },
     {
-        title: "Ed Sheeran - Shape of You",
-        videoId: "JGwWNGJdvx8",
+        title: "The Weeknd - Blinding Lights",
+        videoId: "4NRXx6U8ABQ",
         lang: "en",
         lyrics: [
-            { time: 28, text: "The club isn't the best place to find a lover" }
+            { time: 65, text: "I've been tryna call" },
+            { time: 68, text: "I've been on my own for long enough" },
+            { time: 72, text: "Maybe you can show me how to love" }
+        ]
+    },
+    {
+        title: "Lewis Capaldi - Someone You Loved",
+        videoId: "zABLecsR5UE",
+        lang: "en",
+        lyrics: [
+            { time: 20, text: "I'm going under and this time" },
+            { time: 24, text: "I fear there's no one to save me" },
+            { time: 29, text: "This all or nothing really got a way of driving me crazy" }
         ]
     }
 ];

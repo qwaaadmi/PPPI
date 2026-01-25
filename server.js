@@ -19,9 +19,8 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const JWT_SECRET = "super_secret_key";
-
-// Тимчасова БД
 const users = [];
+const rooms = {};
 
 // REGISTER
 app.post("/api/register", async (req, res) => {
@@ -86,39 +85,63 @@ io.use((socket, next) => {
     }
 });
 
-// SOCKET ROOMS
+// SOCKET
 io.on("connection", (socket) => {
     console.log("Connected:", socket.user.username);
     
-    socket.on("joinRoom", (room) => {
-        socket.join(room);
-        console.log(socket.user.username + " joined room " + room);
-        io.to(room).emit("systemMessage", socket.user.username + " увійшов у кімнату");
+    socket.on("joinRoom", (roomName) => {
+        socket.join(roomName);
+        socket.currentRoom = roomName;
+        
+        // Створюємо кімнату
+        if (!rooms[roomName]) {
+            rooms[roomName] = { users: [] };
+        }
+        
+        // Додаємо користувача
+        rooms[roomName].users.push({
+            id: socket.id,
+            username: socket.user.username
+        });
+        
+        console.log(socket.user.username + " joined " + roomName);
+        
+        // Відправляємо список всім
+        io.to(roomName).emit("roomUsers", rooms[roomName].users);
+        io.to(roomName).emit("systemMessage", socket.user.username + " увійшов");
     });
     
     socket.on("playSong", (data) => {
-        console.log("Playing song:", data);
-        io.to(data.room).emit("playSong", data.index);
+        console.log("Play song:", data.index, "in room:", data.room);
+        io.to(data.room).emit("playSong", { index: data.index });
     });
     
     socket.on("disconnect", () => {
         console.log("Disconnected:", socket.user.username);
+        
+        if (socket.currentRoom && rooms[socket.currentRoom]) {
+            // Видаляємо користувача
+            rooms[socket.currentRoom].users = rooms[socket.currentRoom].users.filter(
+                u => u.id !== socket.id
+            );
+            
+            // Оновлюємо список
+            io.to(socket.currentRoom).emit("roomUsers", rooms[socket.currentRoom].users);
+            io.to(socket.currentRoom).emit("systemMessage", socket.user.username + " вийшов");
+            
+            // Видаляємо порожню кімнату
+            if (rooms[socket.currentRoom].users.length === 0) {
+                delete rooms[socket.currentRoom];
+            }
+        }
     });
 });
 
-// TEST ROUTE
 app.get("/", (req, res) => {
-    res.send("🎤 Karaoke backend is running");
+    res.send("🎤 Karaoke server running");
 });
 
-// ERROR HANDLING
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send("Something broke!");
-});
-
-// START
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log("Karaoke server started on port " + PORT);
+    console.log("Server on port " + PORT);
 });
